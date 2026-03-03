@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Security Log Analyzer</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0d1117;
+        --surface: #161b22;
+        --border: #30363d;
+        --text: #c9d1d9;
+        --muted: #8b949e;
+        --green: #3fb950;
+        --yellow: #d29922;
+        --red: #f85149;
+        --blue: #58a6ff;
+        --accent: #1f6feb;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        font-size: 14px;
+        min-height: 100vh;
+      }
+
+      header {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 16px 32px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      header h1 {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      header span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      main {
+        max-width: 1100px;
+        margin: 32px auto;
+        padding: 0 24px;
+      }
+
+      .upload-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 24px;
+      }
+      .upload-card h2 {
+        font-size: 15px;
+        margin-bottom: 16px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .upload-row {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      input[type='file'],
+      select {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      button {
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 9px 20px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .stats-bar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .stat {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+      }
+      .stat .val {
+        font-size: 28px;
+        font-weight: 700;
+      }
+      .stat .lbl {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .stat.red .val {
+        color: var(--red);
+      }
+      .stat.yellow .val {
+        color: var(--yellow);
+      }
+      .stat.green .val {
+        color: var(--green);
+      }
+      .stat.blue .val {
+        color: var(--blue);
+      }
+
+      .filter-bar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .filter-bar span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .chip {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 4px 14px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .chip.active {
+        border-color: var(--blue);
+        color: var(--blue);
+        background: #1f6feb22;
+      }
+
+      .events-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .events-table th {
+        text-align: left;
+        padding: 10px 12px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        color: var(--muted);
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+      }
+      .events-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      .events-table tr:hover td {
+        background: #ffffff08;
+      }
+
+      .badge {
+        display: inline-block;
+        border-radius: 4px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .badge.high {
+        background: #f8514922;
+        color: var(--red);
+      }
+      .badge.medium {
+        background: #d2992222;
+        color: var(--yellow);
+      }
+      .badge.low {
+        background: #3fb95022;
+        color: var(--green);
+      }
+      .badge.unknown {
+        background: #8b949e22;
+        color: var(--muted);
+      }
+
+      .classify-btn {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--blue);
+        border-radius: 4px;
+        padding: 3px 10px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+      }
+      .classify-btn:hover {
+        background: #1f6feb22;
+      }
+      .classify-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .reason-list {
+        list-style: none;
+      }
+      .reason-list li::before {
+        content: '⚑ ';
+        color: var(--yellow);
+      }
+      .ai-expl {
+        color: var(--muted);
+        font-style: italic;
+        margin-top: 4px;
+      }
+
+      .ip-summary {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 24px;
+      }
+      .ip-summary h3 {
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 12px;
+      }
+      .ip-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 13px;
+      }
+
+      .loader {
+        text-align: center;
+        padding: 40px;
+        color: var(--muted);
+      }
+      .error {
+        background: #f8514920;
+        border: 1px solid var(--red);
+        color: var(--red);
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+      }
+      .hidden {
+        display: none;
+      }
+
+      .export-bar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .export-btn {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 6px;
+        padding: 6px 14px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      </svg>
+      <h1>Security Log Analyzer</h1>
+      <span>AI-powered threat detection</span>
+    </header>
+
+    <main>
+      <div class="upload-card">
+        <h2>Upload Log File</h2>
+        <div class="upload-row">
+          <label>
+            Log File
+            <input type="file" id="logFile" accept=".log,.txt" />
+          </label>
+          <label>
+            Log Type
+            <select id="logType">
+              <option value="auth">auth.log (Linux SSH/PAM)</option>
+              <option value="nginx">nginx access.log</option>
+            </select>
+          </label>
+          <button id="analyzeBtn" onclick="analyze()">Analyze</button>
+        </div>
+        <div style="margin-top: 12px; display: flex; gap: 8px; align-items: center">
+          <span style="color: var(--muted); font-size: 12px">Or try a demo:</span>
+          <button class="export-btn" onclick="loadDemo('auth')">Demo auth.log</button>
+          <button class="export-btn" onclick="loadDemo('nginx')">Demo nginx.log</button>
+        </div>
+      </div>
+
+      <div id="error" class="error hidden"></div>
+      <div id="loader" class="loader hidden">🔍 Parsing and classifying events…</div>
+
+      <div id="results" class="hidden">
+        <div class="stats-bar">
+          <div class="stat blue">
+            <div class="val" id="totalEvents">—</div>
+            <div class="lbl">Total Events</div>
+          </div>
+          <div class="stat red">
+            <div class="val" id="suspCount">—</div>
+            <div class="lbl">Suspicious</div>
+          </div>
+          <div class="stat red">
+            <div class="val" id="highCount">—</div>
+            <div class="lbl">High Severity</div>
+          </div>
+          <div class="stat yellow">
+            <div class="val" id="medCount">—</div>
+            <div class="lbl">Medium Severity</div>
+          </div>
+          <div class="stat green">
+            <div class="val" id="lowCount">—</div>
+            <div class="lbl">Low Severity</div>
+          </div>
+        </div>
+
+        <div class="ip-summary">
+          <h3>Top Offending IPs</h3>
+          <div id="ipSummary"></div>
+        </div>
+
+        <div class="export-bar">
+          <button class="export-btn" onclick="exportData('json')">⬇ Export JSON</button>
+          <button class="export-btn" onclick="exportData('csv')">⬇ Export CSV</button>
+        </div>
+
+        <div class="filter-bar">
+          <span>Filter:</span>
+          <div class="chip active" data-filter="all" onclick="setFilter('all')">All</div>
+          <div class="chip" data-filter="suspicious" onclick="setFilter('suspicious')">
+            Suspicious
+          </div>
+          <div class="chip" data-filter="high" onclick="setFilter('high')">High</div>
+          <div class="chip" data-filter="medium" onclick="setFilter('medium')">Medium</div>
+          <div class="chip" data-filter="low" onclick="setFilter('low')">Low</div>
+        </div>
+
+        <div style="overflow-x: auto; border-radius: 8px; border: 1px solid var(--border)">
+          <table class="events-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>IP</th>
+                <th>Event</th>
+                <th>Endpoint / User</th>
+                <th>Severity</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="eventsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      let allEvents = [];
+      let suspiciousEvents = [];
+      let activeFilter = 'all';
+      let lastResult = null;
+
+      async function loadDemo(logType) {
+        showError('');
+        document.getElementById('results').classList.add('hidden');
+        document.getElementById('loader').classList.remove('hidden');
+        document.getElementById('analyzeBtn').disabled = true;
+        document.getElementById('logType').value = logType;
+
+        try {
+          const res = await fetch(`/demo/${logType}`);
+          const { content } = await res.json();
+
+          // Convert content string to a File object and run through analyze
+          const blob = new Blob([content], { type: 'text/plain' });
+          const file = new File([blob], `demo_${logType}.log`);
+          const fd = new FormData();
+          fd.append('file', file);
+
+          const analyzeRes = await fetch(`/analyze?log_type=${logType}`, {
+            method: 'POST',
+            body: fd,
+          });
+          if (!analyzeRes.ok) {
+            const err = await analyzeRes.json();
+            throw new Error(err.detail || 'Server error');
+          }
+          const data = await analyzeRes.json();
+          lastResult = data.result;
+          renderResults(data.result);
+        } catch (e) {
+          showError(`Error: ${e.message}`);
+        } finally {
+          document.getElementById('loader').classList.add('hidden');
+          document.getElementById('analyzeBtn').disabled = false;
+        }
+      }
+
+      async function analyze() {
+        const file = document.getElementById('logFile').files[0];
+        const logType = document.getElementById('logType').value;
+        if (!file) {
+          showError('Please select a log file.');
+          return;
+        }
+
+        showError('');
+        document.getElementById('results').classList.add('hidden');
+        document.getElementById('loader').classList.remove('hidden');
+        document.getElementById('analyzeBtn').disabled = true;
+
+        const fd = new FormData();
+        fd.append('file', file);
+
+        try {
+          const res = await fetch(`/analyze?log_type=${logType}`, { method: 'POST', body: fd });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Server error');
+          }
+          const data = await res.json();
+          lastResult = data.result;
+          renderResults(data.result);
+        } catch (e) {
+          showError(`Error: ${e.message}`);
+        } finally {
+          document.getElementById('loader').classList.add('hidden');
+          document.getElementById('analyzeBtn').disabled = false;
+        }
+      }
+
+      function renderResults(r) {
+        document.getElementById('totalEvents').textContent = r.total_events;
+        document.getElementById('suspCount').textContent = r.suspicious_count;
+        document.getElementById('highCount').textContent = r.high_severity_count;
+        document.getElementById('medCount').textContent = r.medium_severity_count;
+        document.getElementById('lowCount').textContent = r.low_severity_count;
+
+        const ipEl = document.getElementById('ipSummary');
+        const sorted = Object.entries(r.ip_summary)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10);
+        ipEl.innerHTML = sorted.length
+          ? sorted
+              .map(
+                ([ip, cnt]) =>
+                  `<div class="ip-row"><span>${ip}</span><span style="color:var(--red)">${cnt} event${cnt > 1 ? 's' : ''}</span></div>`
+              )
+              .join('')
+          : '<div style="color:var(--muted)">No suspicious IPs detected.</div>';
+
+        allEvents = r.all_events;
+        suspiciousEvents = r.suspicious_events;
+        renderTable();
+        document.getElementById('results').classList.remove('hidden');
+      }
+
+      function renderTable() {
+        const body = document.getElementById('eventsBody');
+
+        let rows;
+        if (activeFilter === 'all') {
+          // Show all events; mark suspicious ones
+          rows = allEvents.map((ev) => {
+            const susp = suspiciousEvents.find((s) => s.event.id === ev.id);
+            return { ev, susp };
+          });
+        } else if (activeFilter === 'suspicious') {
+          rows = suspiciousEvents.map((susp) => ({ ev: susp.event, susp }));
+        } else {
+          rows = suspiciousEvents
+            .filter((s) => s.severity === activeFilter)
+            .map((susp) => ({ ev: susp.event, susp }));
+        }
+
+        if (!rows.length) {
+          body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">No events match this filter.</td></tr>`;
+          return;
+        }
+
+        body.innerHTML = rows
+          .map(({ ev, susp }) => {
+            const ts = ev.timestamp ? new Date(ev.timestamp).toLocaleString() : '—';
+            const detail = ev.endpoint || ev.username || '—';
+
+            if (!susp) {
+              // Normal event row
+              return `<tr>
+          <td style="white-space:nowrap;color:var(--muted)">${ts}</td>
+          <td><code>${ev.source_ip || '—'}</code></td>
+          <td>${ev.event_type.replace(/_/g, ' ')}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${detail}">${detail}</td>
+          <td><span class="badge low" style="opacity:.4">normal</span></td>
+          <td style="color:var(--muted);font-size:12px">—</td>
+        </tr>`;
+            }
+
+            const reasons = susp.reasons.map((r) => `<li>${r}</li>`).join('');
+            const aiNote = susp.ai_explanation
+              ? `<div class="ai-expl">🤖 ${susp.ai_explanation}</div>`
+              : `<div><button class="classify-btn" onclick="classifyEvent('${ev.id}', this)">🤖 Classify</button></div>`;
+            return `<tr id="row-${ev.id}">
+        <td style="white-space:nowrap;color:var(--muted)">${ts}</td>
+        <td><code>${ev.source_ip || '—'}</code></td>
+        <td>${ev.event_type.replace(/_/g, ' ')}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${detail}">${detail}</td>
+        <td id="sev-${ev.id}"><span class="badge ${susp.severity}">${susp.severity}</span></td>
+        <td><ul class="reason-list">${reasons}</ul><div id="ai-${ev.id}">${aiNote}</div></td>
+      </tr>`;
+          })
+          .join('');
+      }
+
+      function setFilter(f) {
+        activeFilter = f;
+        document
+          .querySelectorAll('.chip')
+          .forEach((c) => c.classList.toggle('active', c.dataset.filter === f));
+        renderTable();
+      }
+
+      function exportData(fmt) {
+        if (!lastResult) return;
+        if (fmt === 'json') {
+          download(
+            new Blob([JSON.stringify(lastResult.suspicious_events, null, 2)], {
+              type: 'application/json',
+            }),
+            'suspicious_events.json'
+          );
+        } else {
+          const rows = lastResult.suspicious_events.map((ev) => ({
+            timestamp: ev.event.timestamp || '',
+            ip: ev.event.source_ip || '',
+            event: ev.event.event_type,
+            severity: ev.severity,
+            threat: ev.threat_type,
+            reasons: ev.reasons.join(' | '),
+            explanation: ev.ai_explanation || '',
+          }));
+          const csv = [
+            Object.keys(rows[0]).join(','),
+            ...rows.map((r) =>
+              Object.values(r)
+                .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+                .join(',')
+            ),
+          ].join('\n');
+          download(new Blob([csv], { type: 'text/csv' }), 'suspicious_events.csv');
+        }
+      }
+
+      function download(blob, name) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+      }
+
+      async function classifyEvent(id, btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Classifying…';
+
+        const ev = suspiciousEvents.find((e) => e.event.id === id);
+        if (!ev) return;
+
+        try {
+          const res = await fetch('/classify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(ev),
+          });
+          if (!res.ok) throw new Error('Classification failed');
+          const classified = await res.json();
+
+          Object.assign(ev, classified);
+
+          document.getElementById(`sev-${id}`).innerHTML =
+            `<span class="badge ${classified.severity}">${classified.severity}</span>`;
+
+          document.getElementById(`ai-${id}`).innerHTML = classified.ai_explanation
+            ? `<div class="ai-expl">🤖 ${classified.ai_explanation}</div>`
+            : '<div style="color:var(--muted)">No explanation returned.</div>';
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = '🤖 Classify';
+          document.getElementById(`ai-${id}`).innerHTML =
+            `<div style="color:var(--red)">Error: ${e.message}</div>`;
+        }
+      }
+
+      function showError(msg) {
+        const el = document.getElementById('error');
+        el.textContent = msg;
+        el.classList.toggle('hidden', !msg);
+      }
+    </script>
+  </body>
+</html>

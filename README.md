@@ -4,6 +4,13 @@ An AI-powered security log analysis tool that parses Linux `auth.log` and Nginx 
 
 ---
 
+## Live Demo
+
+A live demo is available at:  
+[security-log-analyzer-production.up.railway.app](https://security-log-analyzer-production.up.railway.app/)
+
+---
+
 ## Architecture
 
 ```
